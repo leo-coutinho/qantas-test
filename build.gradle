@@ -1,0 +1,96 @@
+buildscript {
+    ext {
+        springBootVersion = '2.0.3.RELEASE'
+    }
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+plugins {
+    id 'org.hidetake.swagger.generator' version '2.11.0'
+}
+
+group 'com.qantas.task'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+ext {
+    swaggerCodegenVersion = '2.3.1'
+    libSwaggerTemplatesVersion = '1.1.0'
+    swaggerVersion = "2.5.0+"
+
+}
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+}
+dependencies {
+
+// swagger
+    compile "io.springfox:springfox-swagger2:$swaggerVersion"
+    compile "io.springfox:springfox-swagger-ui:$swaggerVersion"
+
+    compile 'org.springframework.boot:spring-boot-starter-web'
+
+    testCompile 'org.springframework.boot:spring-boot-starter-test'
+
+//    swaggerTemplate "com.qantas.task:lib-swagger-templates:$libSwaggerTemplatesVersion"
+    swaggerCodegen "io.swagger:swagger-codegen-cli:$swaggerCodegenVersion"
+
+}
+
+
+//dependencies {
+//    compile('org.springframework.boot:spring-boot-starter')
+//    testCompile('org.springframework.boot:spring-boot-starter-test')
+//}
+
+// Generates the internal model from an OpenApi specification (Swagger)
+task swagger (type: GenerateSwaggerCode) {
+    doFirst {
+        java.nio.file.Files.createDirectories(java.nio.file.Paths.get(outputDir.getPath()))
+    }
+}
+
+def swaggerAdditionalProperties = [
+        'sourceFolder'           : '',
+        'invokerPackage'         : 'outputDir',
+        'apiPackage'             : 'com.qantas.task.profile.v1.api',
+        'modelPackage'           : 'com.qantas.task.profile.v1.model',
+        'dateLibrary'            : 'java8',
+        'hideGenerationTimestamp': true,
+        'serializableModel'      : true,
+        'java8'                  : true,
+        'interfaceOnly'          : true,
+]
+swaggerSources {
+    definitions {
+        inputFile = file('src/main/resources/swagger/definition.yaml')
+        code {
+            outputDir = file("$buildDir/generated/swagger/")
+            language = 'spring'
+            components = ['models', 'apis']
+//            templateDir = file("${resolveSwaggerTemplate.destinationDir}/JavaSpring")
+            additionalProperties = swaggerAdditionalProperties
+        }
+        ui {
+            outputDir = file("$buildDir/docs/")
+        }
+    }
+}
+
+project.tasks.compileJava.dependsOn('swagger')
+project.tasks.swagger.dependsOn(swaggerSources.definitions.code)
+
+sourceSets.main.java.srcDir new File(buildDir, "generated/swagger")
